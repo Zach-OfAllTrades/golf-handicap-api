@@ -3,6 +3,7 @@ import { Rounds } from "../entity/Round";
 import { AppDataSource } from "../data-source";
 import { Between } from "typeorm";
 import { HANDICAP_DIFFS, STANDARD_DATE_FORMAT } from "../rules";
+import { getValidRounds } from "./RoundsService";
 
 const standardizeDate = (date: any) => dayjs(date).format(STANDARD_DATE_FORMAT);
 const getAverage = (array) => array.reduce((a, b) => a + b) / array.length;
@@ -15,12 +16,7 @@ export const getUserHandicap = async (userId) => {
     standardizeDate(yearAgo),
     standardizeDate(today)
   );
-  const handicap = calculateHandicap(roundsArray);
-
-  return {
-    handicap,
-    rounds: roundsArray, // TODO: GET RID OF THIS, FETCH ROUNDS SEPARATE
-  };
+  return calculateHandicap(roundsArray);
 };
 
 const calculateHandicap = (rounds) => {
@@ -47,16 +43,37 @@ const calculateRoundDiff = (ags, rating, slope, adjustment) => {
   return diff.toFixed(2) - adjustment;
 };
 
-const getValidRounds = async (userId, from, to) => {
-  const roundsRepository = AppDataSource.getRepository(Rounds);
-  return roundsRepository.find({
-    where: { user: { id: userId }, date: Between(from, to) },
-    order: {
-      date: "DESC",
-    },
-    take: 20,
-    relations: {
-      tee: { course: true },
-    },
-  });
+const calulateSupportMetrics = () => {
+  // what support metrics are selected? Later functionality
 };
+
+const calculateAverageScore = (rounds) => {
+  const scoreDiffs = rounds.map((round) => {
+    return round.score - round.tee.par;
+  });
+  return getAverage(scoreDiffs);
+};
+
+const calculateLowestRound = (rounds) => {
+  return Math.min(...rounds.map((round) => round.score));
+};
+
+const calculateHandicapTrend = async (
+  userId,
+  currentHandicap,
+  trendMeasurement
+) => {
+  // Monthly trend of users handicap, go back a month & calculate handicap, then compare it to current.
+  const endDate = dayjs().subtract(1, trendMeasurement);
+  const yearFromEnd = dayjs(endDate).subtract(1, "year");
+
+  const roundsArray = await getValidRounds(userId, yearFromEnd, endDate);
+  const oldHandicap: any = calculateHandicap(roundsArray);
+  const trend = currentHandicap - oldHandicap;
+  return trend.toFixed(1);
+};
+
+// SAFE GAURDS:
+// - You submit an exceptional score, which is 7.0 strokes or better than your Handicap Index at the time the round is played, or
+// - Your 8 of 20 calculation is 3.0 or more strokes above your Low Handicap Index™ from the previous 365 days.
+

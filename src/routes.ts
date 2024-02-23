@@ -1,5 +1,5 @@
 import { CoursesController } from "./controller/CoursesController";
-import { HandicapController } from "./controller/HandicapController";
+import { MetricsController } from "./controller/MetricsController";
 import { RoundsController } from "./controller/RoundsController";
 import { TeesController } from "./controller/TeesController";
 import { UsersController } from "./controller/UsersController";
@@ -97,8 +97,14 @@ export const Routes = [
   },
   {
     method: "get",
-    route: "/handicap/:userId",
-    controller: HandicapController,
+    route: "/metric/:metricKey/:userId",
+    controller: MetricsController,
     action: "one",
+  },
+  {
+    method: "post",
+    route: "/metrics",
+    controller: MetricsController,
+    action: "some",
   },
 ];
