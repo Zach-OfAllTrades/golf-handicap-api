@@ -1,12 +1,13 @@
 import { NextFunction, Request, Response } from "express";
-import { getUserHandicap } from "../services/MetricsService";
+import { getAverageDiff, getAverageScore, getAverageSop, getLowestRound, getUserHandicap } from "../services/MetricsService";
 
 const METRIC_FUNCS = {
   handicap: (userId: string) => getUserHandicap(userId),
-  avg_score: (userId: string) => getUserHandicap(userId),
-  avg_diff: (userId: string) => getUserHandicap(userId),
-  avg_sop: (userId: string) => getUserHandicap(userId),
+  avg_score: (userId: string) => getAverageScore(userId),
+  avg_diff: (userId: string) => getAverageDiff(userId),
+  avg_sop: (userId: string) => getAverageSop(userId),
   handicap_trend: (userId: string) => getUserHandicap(userId),
+  lowest: (userId: string) => getLowestRound(userId),
 };
 
 export class MetricsController {
