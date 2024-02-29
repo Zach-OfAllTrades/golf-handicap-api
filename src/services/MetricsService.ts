@@ -11,6 +11,7 @@ export const getUserHandicap = async (userId) => {
   return getCurrentValidRounds(userId).then((rounds) => {
     return calculateHandicap(rounds);
   });
+
 };
 
 const calculateHandicap = (rounds) => {
@@ -80,6 +81,21 @@ const calculateHandicapTrend = async (
   const roundsArray = await getValidRounds(userId, yearFromEnd, endDate);
   const oldHandicap: any = calculateHandicap(roundsArray);
   const trend = currentHandicap - oldHandicap;
+  return trend.toFixed(1);
+};
+
+const calculateTrend = async (
+  userId,
+  metric,
+  trendMeasurement
+) => {
+  // Monthly trend of users handicap, go back a month & calculate handicap, then compare it to current.
+  const endDate = dayjs().subtract(1, trendMeasurement);
+  const yearFromEnd = dayjs(endDate).subtract(1, "year");
+
+  const roundsArray = await getValidRounds(userId, yearFromEnd, endDate);
+  const oldMetric: any = calculateHandicap(roundsArray);
+  const trend = metric - oldMetric;
   return trend.toFixed(1);
 };
 
