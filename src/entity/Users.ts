@@ -6,6 +6,7 @@ import {
   BaseEntity,
   Timestamp,
 } from "typeorm";
+import { Metric } from "./Metric";
 import { Rounds } from "./Round";
 
 @Entity()
@@ -36,6 +37,9 @@ export default class Users extends BaseEntity {
 
   @OneToMany(() => Rounds, (round) => round.user)
   rounds: Rounds[];
+
+  @OneToMany(() => Metric, (metric) => metric.id)
+  metrics: Metric[];
 
   async save(): Promise<this> {
     await super.save();

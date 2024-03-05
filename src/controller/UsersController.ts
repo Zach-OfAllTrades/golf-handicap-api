@@ -6,12 +6,11 @@ import { Rounds } from "../entity/Round";
 import dayjs = require("dayjs");
 
 export class UsersController {
-
   getYearAgo = () => {
-    const today  = new Date();
+    const today = new Date();
     const yearAgo = dayjs(today).subtract(1, "month");
-    return dayjs(yearAgo).format("YYYY-MM-DD")
-  }
+    return dayjs(yearAgo).format("YYYY-MM-DD");
+  };
 
   private usersRepository = AppDataSource.getRepository(Users);
 
@@ -26,8 +25,8 @@ export class UsersController {
   }
 
   // TODO: FIX: this does not return user when there are no rounds within the date range - may call for queryBuilder & raw SQL
-  // brings back everything with a year, maybe only 20 records? 
-  async one(request: Request, response: Response, next: NextFunction) {
+  // brings back everything with a year, maybe only 20 records?
+  async oneAndRounds(request: Request, response: Response, next: NextFunction) {
     const id = request.params.id;
     const to = request.params.to ?? new Date();
     const from = request.params.from ?? this.getYearAgo().toString();
@@ -38,6 +37,22 @@ export class UsersController {
         rounds: {
           tee: true,
         },
+      },
+    });
+
+    if (!user) {
+      return "unregistered user";
+    }
+    return user;
+  }
+
+  async one(request: Request, response: Response, next: NextFunction) {
+    const id = request.params.id;
+
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      relations: {
+        metrics: true,
       },
     });
 
