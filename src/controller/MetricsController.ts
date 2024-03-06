@@ -1,5 +1,15 @@
 import { NextFunction, Request, Response } from "express";
-import { getAverageDiff, getAverageScore, getAverageSop, getLowestRound, getUserHandicap } from "../services/MetricsService";
+import { AppDataSource } from "../data-source";
+import { UserMetric } from "../entity/UserMetric";
+import Users from "../entity/Users";
+import {
+  getAverageDiff,
+  getAverageScore,
+  getAverageSop,
+  getLowestRound,
+  getMetrics,
+  getUserHandicap,
+} from "../services/MetricsService";
 
 const METRIC_FUNCS = {
   handicap: (userId: string) => getUserHandicap(userId),
@@ -11,6 +21,9 @@ const METRIC_FUNCS = {
 };
 
 export class MetricsController {
+  private userMetrics = AppDataSource.getRepository(UserMetric);
+  private usersRepository = AppDataSource.getRepository(Users);
+
   async getFormattedMetric(key: string, userId: string) {
     return { [key]: await METRIC_FUNCS[key](userId) };
   }
@@ -29,6 +42,38 @@ export class MetricsController {
     );
 
     const metrics = await Promise.all(metricMap);
+    return metrics;
+  }
+
+  async byUser(request: Request, response: Response, next: NextFunction) {
+    const userId = request.params.userId;
+    // const userMetrics = await this.userMetrics.find({
+    //   where: { user_id: userId },
+    //   relations: {
+    //     metric: true,
+    //   },
+    // });
+    // const metrics = userMetrics.map((userMetric) => userMetric.metric);
+
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: {
+        rounds: {
+          tee: true,
+        },
+        userMetrics: {
+          metric: true,
+        },
+      },
+    });
+
+    const metrics = await getMetrics(user);
+
+    // const metricMap = metricKeys.map(
+    //   async (key: string) => await this.getFormattedMetric(key, userId)
+    // );
+
+    // const metrics = await Promise.all(metricMap);
     return metrics;
   }
 }

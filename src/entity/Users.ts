@@ -8,6 +8,7 @@ import {
 } from "typeorm";
 import { Metric } from "./Metric";
 import { Rounds } from "./Round";
+import { UserMetric } from "./UserMetric";
 
 @Entity()
 export default class Users extends BaseEntity {
@@ -38,8 +39,8 @@ export default class Users extends BaseEntity {
   @OneToMany(() => Rounds, (round) => round.user)
   rounds: Rounds[];
 
-  @OneToMany(() => Metric, (metric) => metric.id)
-  metrics: Metric[];
+  @OneToMany(() => UserMetric, (userMetric) => userMetric.user)
+  userMetrics: UserMetric[];
 
   async save(): Promise<this> {
     await super.save();

@@ -4,11 +4,8 @@ import {
   Column,
   OneToMany,
   BaseEntity,
-  ManyToOne,
-  JoinColumn,
 } from "typeorm";
-import { Tees } from "./Tee";
-import Users from "./Users";
+import { UserMetric } from "./UserMetric";
 
 @Entity()
 export class Metric extends BaseEntity {
@@ -20,4 +17,7 @@ export class Metric extends BaseEntity {
 
   @Column()
   title: string;
+
+  @OneToMany(() => UserMetric, (userMetric) => userMetric.user)
+  userMetrics: UserMetric[];
 }

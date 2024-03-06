@@ -52,7 +52,9 @@ export class UsersController {
     const user = await this.usersRepository.findOne({
       where: { id },
       relations: {
-        metrics: true,
+        userMetrics: {
+          metric: true,
+        },
       },
     });
 
