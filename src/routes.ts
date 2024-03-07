@@ -102,12 +102,6 @@ export const Routes = [
     action: "one",
   },
   {
-    method: "post",
-    route: "/metrics",
-    controller: MetricsController,
-    action: "some",
-  },
-  {
     method: "get",
     route: "/metrics/:userId",
     controller: MetricsController,
