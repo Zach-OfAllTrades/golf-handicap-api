@@ -1,20 +1,98 @@
 import dayjs = require("dayjs");
-import { Rounds } from "../entity/Round";
-import { AppDataSource } from "../data-source";
-import { Between } from "typeorm";
 import { HANDICAP_DIFFS, STANDARD_DATE_FORMAT } from "../rules";
-import { getCurrentValidRounds, getValidRounds } from "./RoundsService";
+import Users from "../entity/Users";
+import { Metric } from "../entity/Metric";
 
-const getAverage = (array) => array.reduce((a, b) => a + b) / array.length;
+const TREND_MEASUREMENTS = {
+  WEEK: "week",
+  MONTH: "month",
+  YEAR: "year",
+};
 
-export const getUserHandicap = async (userId) => {
-  return getCurrentValidRounds(userId).then((rounds) => {
-    return calculateHandicap(rounds);
+const METRIC_FUNCS = {
+  handicap: (validRounds) => getHandicapMetric(validRounds),
+  avg_score: (validRounds) => getAverageScore(validRounds),
+  avg_diff: (validRounds) => getAverageDiff(validRounds),
+  avg_sop: (validRounds) => getAverageSop(validRounds),
+  lowest: (validRounds) => getLowestRound(validRounds),
+};
+
+const calcAverage = (array) => array.reduce((a, b) => a + b) / array.length;
+const standardizeDate = (date: any) => dayjs(date).format(STANDARD_DATE_FORMAT);
+
+export const getMetrics = async (
+  user: Users,
+  trendMeasurement: string = TREND_MEASUREMENTS.MONTH
+) => {
+  const { rounds, userMetrics } = user;
+  const validRounds = getValidRounds(rounds, trendMeasurement);
+  const metrics = userMetrics.map((userMetric) => userMetric.metric);
+  return metrics.map((metric) => {
+    return calcMetric(metric, validRounds);
   });
+};
 
+export const getMetric = async (
+  user: Users,
+  metric: Metric,
+  trendMeasurement: string = TREND_MEASUREMENTS.MONTH
+) => {
+  const { rounds } = user;
+  const validRounds = getValidRounds(rounds, trendMeasurement);
+  return calcMetric(metric, validRounds);
+};
+
+const calcMetric = (metric, validRounds) => {
+  const calculatedMetric: any = metric;
+  calculatedMetric.value = METRIC_FUNCS[metric.key](validRounds);
+  return calculatedMetric;
+};
+
+const getValidRounds = (rounds, trendMeasurement) => {
+  const currentRounds = getCurrentRounds(rounds);
+  const trendRounds = getTrendRounds(rounds, trendMeasurement);
+  return { currentRounds, trendRounds };
+};
+
+const getTrendRounds = (allRounds, trendMeasurement) => {
+  const endDate = dayjs().subtract(1, trendMeasurement);
+  const yearFromEnd = dayjs(endDate).subtract(1, "year");
+  return validateRounds(
+    allRounds,
+    standardizeDate(yearFromEnd),
+    standardizeDate(endDate)
+  );
+};
+
+const getCurrentRounds = (allRounds) => {
+  const today = new Date();
+  const yearAgo = dayjs(today).subtract(1, "year");
+  return validateRounds(
+    allRounds,
+    standardizeDate(yearAgo),
+    standardizeDate(today)
+  );
+};
+
+const validateRounds = (rounds, to, from) => {
+  const roundsWithinDates = rounds.filter(
+    (round) =>
+      !dayjs(round.date).isBefore(to) && !dayjs(round.date).isAfter(from)
+  );
+  return roundsWithinDates.length > 20
+    ? roundsWithinDates.sort((a, b) => b.date - a.date).slice(0, 20)
+    : roundsWithinDates;
+};
+
+const getHandicapMetric = ({ currentRounds, trendRounds }) => {
+  const current: any = calculateHandicap(currentRounds);
+  const previousHandicap: any = calculateHandicap(trendRounds);
+  const trend = current - previousHandicap;
+  return { current, trend: trend.toFixed(2) };
 };
 
 const calculateHandicap = (rounds) => {
+  // TODO: account for this return type
   if (rounds.length < 3) return "N/A";
   const { numberOfLowest, adjustment } = HANDICAP_DIFFS[rounds.length];
   const handicappedRounds = rounds.map((round) => {
@@ -25,7 +103,7 @@ const calculateHandicap = (rounds) => {
   const lowestRounds = handicappedRounds
     .sort((a, b) => a - b)
     .slice(0, numberOfLowest);
-  const diffAverage = getAverage(lowestRounds);
+  const diffAverage = calcAverage(lowestRounds);
   // average of lowest scores (depending on rules) * .96;
   const rawHandicap = diffAverage * 0.96;
 
@@ -38,65 +116,42 @@ const calculateRoundDiff = (ags, rating, slope, adjustment) => {
   return diff.toFixed(2) - adjustment;
 };
 
-const calulateSupportMetrics = () => {
-  // what support metrics are selected? Later functionality
+export const getAverageScore = ({ currentRounds, trendRounds }) => {
+  const currentScores = currentRounds.map((round) => round.score);
+  const trendScores = trendRounds.map((round) => round.score);
+  return calcAverageMetric(currentScores, trendScores);
 };
 
-export const getAverageScore = (userId) => {
-  return getCurrentValidRounds(userId).then((rounds) => {
-    const scores = rounds.map((round) => round.score);
-    return getAverage(scores);
-  });
+export const getAverageDiff = ({ currentRounds, trendRounds }) => {
+  const currentDiffs = currentRounds.map((round) => round.ags - round.tee.par);
+  const trendDiffs = trendRounds.map((round) => round.ags - round.tee.par);
+  return calcAverageMetric(currentDiffs, trendDiffs);
 };
 
-export const getAverageDiff = (userId) => {
-  return getCurrentValidRounds(userId).then((rounds) => {
-    const agsDiffs = rounds.map((round) => round.ags - round.tee.par);
-    return getAverage(agsDiffs);
-  });
+export const getAverageSop = ({ currentRounds, trendRounds }) => {
+  const currentScoreDiffs = currentRounds.map(
+    (round) => round.score - round.tee.par
+  );
+  const trendScoreDiffs = trendRounds.map(
+    (round) => round.score - round.tee.par
+  );
+  return calcAverageMetric(currentScoreDiffs, trendScoreDiffs);
 };
 
-export const getAverageSop = (userId) => {
-  return getCurrentValidRounds(userId).then((rounds) => {
-    const scoreDiffs = rounds.map((round) => round.score - round.tee.par);
-    return getAverage(scoreDiffs);
-  });
+const calcAverageMetric = (currentAgg, trendAgg) => {
+  const current = calcAverage(currentAgg);
+  const trend = current - calcAverage(trendAgg);
+  return { current, trend: trend.toFixed(2) };
 };
 
-export const getLowestRound = (userId) => {
-  return getCurrentValidRounds(userId).then((rounds) => {
-    return Math.min(...rounds.map((round) => round.score));
-  });
+export const getLowestRound = ({ currentRounds, trendRounds }) => {
+  const current = calcLowestScore(currentRounds);
+  const trend = current - calcLowestScore(trendRounds);
+  return { current, trend };
 };
 
-const calculateHandicapTrend = async (
-  userId,
-  currentHandicap,
-  trendMeasurement
-) => {
-  // Monthly trend of users handicap, go back a month & calculate handicap, then compare it to current.
-  const endDate = dayjs().subtract(1, trendMeasurement);
-  const yearFromEnd = dayjs(endDate).subtract(1, "year");
-
-  const roundsArray = await getValidRounds(userId, yearFromEnd, endDate);
-  const oldHandicap: any = calculateHandicap(roundsArray);
-  const trend = currentHandicap - oldHandicap;
-  return trend.toFixed(1);
-};
-
-const calculateTrend = async (
-  userId,
-  metric,
-  trendMeasurement
-) => {
-  // Monthly trend of users handicap, go back a month & calculate handicap, then compare it to current.
-  const endDate = dayjs().subtract(1, trendMeasurement);
-  const yearFromEnd = dayjs(endDate).subtract(1, "year");
-
-  const roundsArray = await getValidRounds(userId, yearFromEnd, endDate);
-  const oldMetric: any = calculateHandicap(roundsArray);
-  const trend = metric - oldMetric;
-  return trend.toFixed(1);
+const calcLowestScore = (rounds) => {
+  return Math.min(...rounds.map((round) => round.score));
 };
 
 // SAFE GAURDS:

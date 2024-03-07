@@ -19,7 +19,7 @@ export class Tees extends BaseEntity {
   @Column()
   teeName: string;
 
-  @Column()
+  @Column("decimal")
   rating: number;
 
   @Column()

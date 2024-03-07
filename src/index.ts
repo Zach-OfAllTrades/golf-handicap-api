@@ -41,8 +41,7 @@ AppDataSource.initialize()
 
     // start express server
     app.listen(port);
-    await AppDataSource.runMigrations()
-
+    await AppDataSource.runMigrations();
 
     // await AppDataSource.manager.save(
     //   AppDataSource.manager.create(User, {

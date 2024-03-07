@@ -1,34 +1,45 @@
 import { NextFunction, Request, Response } from "express";
-import { getAverageDiff, getAverageScore, getAverageSop, getLowestRound, getUserHandicap } from "../services/MetricsService";
-
-const METRIC_FUNCS = {
-  handicap: (userId: string) => getUserHandicap(userId),
-  avg_score: (userId: string) => getAverageScore(userId),
-  avg_diff: (userId: string) => getAverageDiff(userId),
-  avg_sop: (userId: string) => getAverageSop(userId),
-  handicap_trend: (userId: string) => getUserHandicap(userId),
-  lowest: (userId: string) => getLowestRound(userId),
-};
+import { AppDataSource } from "../data-source";
+import { Metric } from "../entity/Metric";
+import Users from "../entity/Users";
+import { getMetric, getMetrics } from "../services/MetricsService";
 
 export class MetricsController {
-  async getFormattedMetric(key: string, userId: string) {
-    return { [key]: await METRIC_FUNCS[key](userId) };
-  }
+  private usersRepository = AppDataSource.getRepository(Users);
+  private metricRepository = AppDataSource.getRepository(Metric);
 
   async one(request: Request, response: Response, next: NextFunction) {
     const userId = request.params.userId;
     const key = request.params.metricKey;
-    return await this.getFormattedMetric(key, userId);
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: {
+        rounds: {
+          tee: true,
+        },
+      },
+    });
+    const metric = await this.metricRepository.findOne({
+      where: { key },
+    });
+    return await getMetric(user, metric);
   }
 
-  async some(request: Request, response: Response, next: NextFunction) {
-    const { userId, metricKeys } = request.body;
+  async byUser(request: Request, response: Response, next: NextFunction) {
+    const userId = request.params.userId;
 
-    const metricMap = metricKeys.map(
-      async (key: string) => await this.getFormattedMetric(key, userId)
-    );
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: {
+        rounds: {
+          tee: true,
+        },
+        userMetrics: {
+          metric: true,
+        },
+      },
+    });
 
-    const metrics = await Promise.all(metricMap);
-    return metrics;
+    return await getMetrics(user);
   }
 }
