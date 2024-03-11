@@ -55,8 +55,6 @@ VALUES
       )
       .then((obj) => obj[0].id);
 
-    console.log("stillwaterId: ", stillwaterId);
-
     await queryRunner.query(`
   INSERT INTO tees ("courseId", "teeName", rating, slope, yardage, par)
   VALUES

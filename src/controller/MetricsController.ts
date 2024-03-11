@@ -22,7 +22,7 @@ export class MetricsController {
     const metric = await this.metricRepository.findOne({
       where: { key },
     });
-    return await getMetric(user, metric);
+    return await getMetric(user!, metric!);
   }
 
   async byUser(request: Request, response: Response, next: NextFunction) {
@@ -40,6 +40,6 @@ export class MetricsController {
       },
     });
 
-    return await getMetrics(user);
+    return await getMetrics(user!);
   }
 }
