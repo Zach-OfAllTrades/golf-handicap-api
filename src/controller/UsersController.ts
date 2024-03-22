@@ -2,7 +2,6 @@ import { AppDataSource } from "../data-source";
 import { NextFunction, Request, Response } from "express";
 import Users from "../entity/Users";
 import { Between } from "typeorm";
-import { Rounds } from "../entity/Round";
 import dayjs = require("dayjs");
 
 export class UsersController {
